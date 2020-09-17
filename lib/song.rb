@@ -1,74 +1,84 @@
-
-
-
+require 'pry'
 class Song
-attr_accessor :name
-attr_reader :genre
+extend Concerns::Findable
+  attr_accessor :name, :artist, :genre
 
+  @@all = []
 
-@@all=[]
+  def initialize(name, artist=nil, genre=nil)
+    @name = name
+    self.artist=(artist) if artist != nil
+    self.genre=(genre) if genre != nil
+    #self.genre=(genre)
+    save
+  end
 
-def initialize(name, artist=nil, genre=nil)
-@name=name
-save
-self.artist= artist if artist
-self.genre = genre if genre
-end
+  def artist
+    @artist
+  end
 
+  def artist=(artist) #belongs to an artist
+    @artist = artist
+    artist.add_song(self)
+    end
 
+    def genre
+      @genre
+    end
 
-def artist
-  @artist
-end
+    def genre=(genre)
+      @genre = genre
+      genre.songs << self unless genre.songs.include?(self)
+      #adds the song to the genre's collection of songs (genre has many songs)
+      #does not add the song to the genre's collection of songs if it already exists therein
+    end
 
-def artist=(artist)
-@artist=artist
- artist.add_song(self)   #this will add the instance of Song that we are using atm
-end
+  def save
+    @@all << self
+  end
 
+  def self.all
+    @@all
+  end
 
-def genre=(genre)
-    @genre = genre
-    genre.songs << self unless genre.songs.include?(self)
+  def self.destroy_all
+    @@all.clear
+  end
+
+  def self.create(name)
+    Song.new(name, artist=nil, genre=nil)
+  end
+
+  def self.find_by_name(name)
+    self.all.detect {|song| song.name == name}
+  end
+
+#returns (does not recreate) an existing song with the provided name if one exists in @@all
+#creates a song if an existing match is not found
+  def self.find_or_create_by_name(name)
+    self.find_by_name(name) || self.create(name)
   end
 
 
-def self.all
-@@all
-end
-
-def self.destroy_all
-@@all.clear
-end
-
-def save
-@@all<<self
-end
-
-def self.create(name)
-newSong=self.new(name)
-end
-
-def self.find_by_name(name)
-  all.detect{|s|s.name == name}
-end
-
-def self.find_or_create_by_name(name)
-   find_by_name(name) || create(name)
-end
-
-
+############################################# use with MusicImporter
   def self.new_from_filename(filename)
-    parts = filename.split(" - ")
-    artist_name, song_name, genre_name = parts[0], parts[1], parts[2].gsub(".mp3", "")
+song_data = filename.split(" - ")
+    song = song_data[1]
+    artist_name = song_data[0]
+    genre_name = song_data[2].split(".mp3").join
 
-    artist = Artist.find_or_create_by_name(artist_name)
-    genre = Genre.find_or_create_by_name(genre_name)
 
-    new(song_name, artist, genre)
+    artist_name = Artist.find_or_create_by_name(artist_name)
+    genre_name = Genre.find_or_create_by_name(genre_name)
+    self.new(song, artist_name, genre_name)
   end
 
   def self.create_from_filename(filename)
-    new_from_filename(filename).tap{ |s| s.save }
+    self.new_from_filename(filename)
+    #self.create_from_filename(filename)
+#Findable
   end
+
+
+
 end
